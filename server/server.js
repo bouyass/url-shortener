@@ -1,11 +1,32 @@
 const express = require('express')
 const parser = require('body-parser')
+const request = require('request');
+const Url = require('./models/url');
+
+var connection
+
+// create mongo client object
+const mongoose = require('mongoose');
+
 // setting app express 
 var app = express()
 
+// to support URL-encoded bodies 
+app.use(express.urlencoded());
 
 // applying a json parser 
 app.use(parser.json())
+
+// connection to the database
+mongoose.connect('mongodb+srv://lyes1994:lyes1994@cluster0.o93oo.mongodb.net/url-shortener?retryWrites=true&w=majority',
+  { useNewUrlParser: true,
+    useUnifiedTopology: true })
+  .then(() => {
+    console.log('Connexion à MongoDB réussie !')
+    const urls =  Url.find({})
+    console.log(urls)
+    }).catch(() => console.log('Connexion à MongoDB échouée !'));
+
 
 // making a default way
 app.get('/', (req, res) => {
@@ -17,7 +38,17 @@ app.listen(8000, ()=> {
     console.log("server listening on port 8000")
 })
 
-app.get('/getUrl',(req,res) => {
-    
+// recieving url shortening requests
+app.post('/getUrl',(req,res) => {
+
+    request.post({url:'https://goolnk.com/api/v1/shorten', form: {url: req.body.url}}, 
+        function(err,httpResponse,body){
+             if(err) throw err
+             const url = new Url({long_url: req.body.url , short_url : JSON.parse(body).result_url, conversion_date: new Date()})
+             url.save()
+                .then(() => res.status(201).json({ message: 'Objet enregistré !'}))
+                .catch(error => res.status(400).json({ error }));
+             res.send(JSON.parse(body))
+    })
 })
 
